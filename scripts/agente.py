@@ -1,5 +1,6 @@
 import numpy as np
-from entorno_navegacion import Navegacion
+# from entorno_navegacion import Navegacion
+from almacen_all import WarehouseEnv
 from representacion import FeedbackConstruction
 import pickle
 import matplotlib.pyplot as plt
@@ -31,7 +32,14 @@ class SarsaAgent:
         evaluate(num_episodes):
             Evaluates the agent's performance over a specified number of episodes.
     """
-    def __init__(self, env: Navegacion, feedback: FeedbackConstruction, learning_rate=0.1, discount_factor=0.99, epsilon=0.1):
+    def __init__(
+            self,
+            env: WarehouseEnv,
+            feedback: FeedbackConstruction,
+            learning_rate=0.1,
+            discount_factor=0.99,
+            epsilon=0.1
+        ):
         # Mejor no toques estas líneas
         self.env = env
         self.feedback = feedback
@@ -222,7 +230,20 @@ class SarsaAgent:
 if __name__ == "__main__":
     # instanciamos entorno, representación y agente
     # No tocar
-    env = Navegacion()
+
+    # Select the env mode
+    env_mode = 'fixed_pick'  # 'fixed_drop', 'random_drop', 'random_pick'
+    if env_mode == 'fixed_pick':
+        env = WarehouseEnv(just_pick=True, random_objects=False)
+    elif env_mode == 'fixed_drop':
+        env = WarehouseEnv(just_pick=False, random_objects=False)
+    elif env_mode == 'random_drop':
+        env = WarehouseEnv(just_pick=False, random_objects=True)
+    elif env_mode == 'random_pick':
+        env = WarehouseEnv(just_pick=True, random_objects=True)
+    else:
+        raise ValueError(f'The env mode: {env_mode} is not available!')
+
     warehouse_width = 10.0
     warehouse_height = 10.0
     ################
