@@ -2,7 +2,7 @@ import numpy as np
 from tiles3 import IHT, tiles
 
 class FeedbackConstruction:
-    def __init__(self, dims, n_tiles, n_tilings, target_area, rewards):
+    def __init__(self, dims, n_tiles, n_tilings, target_area, rewards = None):
         # No tocar estas líneas
         self.width = dims[0]
         self.height = dims[1]
@@ -15,14 +15,21 @@ class FeedbackConstruction:
         ##############################
         # Si quieres añadir más atributos, añádelos a partir de aquí
 
-        
+        if rewards:
+            self.step_reward_obj_1 = rewards["step_reward_obj_1"]
+            self.step_reward_obj_2 = rewards["step_reward_obj_2"]
+            self.positive_pickup_reward = rewards["positive_pickup_reward"]
+            self.collision_reward_1 = rewards["collision_reward_1"]
+            self.collision_reward_2 = rewards["collision_reward_2"]
+            self.target_reached_reward = rewards["target_reached_reward"]
+        else:
+            self.step_reward_obj_1 = -0.5
+            self.step_reward_obj_2 = -2
+            self.positive_pickup_reward = 5000
+            self.collision_reward_1 = -100
+            self.collision_reward_2 = -5001
+            self.target_reached_reward = 10000
 
-        self.step_reward_obj_1 = -0.5
-        self.step_reward_obj_2 = -2
-        self.positive_pickup_reward = 5000
-        self.collision_reward_1 = -100
-        self.collision_reward_2 = -5001
-        self.target_reached_reward = 10000
         self.flanco = False
 
         
@@ -158,7 +165,11 @@ if __name__ == "__main__":
     n_tilings = 4
 
 
-    realimentacion = FeedbackConstruction((warehouse_width, warehouse_height), (n_tiles_width, n_tiles_height), n_tilings, 
-                                target_area)
+    realimentacion = FeedbackConstruction(
+        (warehouse_width, 
+         warehouse_height), 
+         (n_tiles_width, n_tiles_height), 
+         n_tilings, 
+        target_area)
 
 

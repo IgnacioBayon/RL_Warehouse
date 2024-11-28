@@ -80,6 +80,7 @@ class WarehouseEnv(gym.Env):
 
     def step(self, action):
         done = False
+        col = 0
 
         # Move actions
         if action < 4:
@@ -87,10 +88,11 @@ class WarehouseEnv(gym.Env):
             new_pos = self._get_new_position(action)
 
             # Check for collisions
-            if not self._is_collision(new_pos):
+            col = self._is_collision(new_pos)
+            if col == 0:
                 self.agent_pos = new_pos
             else:
-                self.collision = True
+                self.collision = col
                 done = True
 
         # Pick action
@@ -118,7 +120,7 @@ class WarehouseEnv(gym.Env):
                     self.object_positions.append(self.agent_pos) 
                     self.agent_has_object = False
 
-        return self._get_obs(), done, {}
+        return self._get_obs(), done, {}, col
 
     def _get_obs(self):
         obs = np.zeros(11, dtype=np.float32)
@@ -164,14 +166,14 @@ class WarehouseEnv(gym.Env):
             or pos[1] <= self.agent_radius
             or pos[1] >= self.height - self.agent_radius
         ):
-            return True
+            return 1
 
         # Check for collisions with shelves
         for shelf in self.shelves:
             if self._is_in_area(pos, shelf, self.agent_radius):
-                return True
+                return 2
 
-        return False
+        return 0
 
     def _get_random_empty_position(self):
         while True:
@@ -302,7 +304,7 @@ if __name__ == "__main__":
 
     for _ in range(100):  # Run for 100 steps
         action = env.action_space.sample()  # Your agent would make a decision here
-        obs, done, _ = env.step(action)
+        obs, done, _, _ = env.step(action)
         print(f"Action: {action}; Observation: {obs}; done? {done}")
         env.render()
         if done:

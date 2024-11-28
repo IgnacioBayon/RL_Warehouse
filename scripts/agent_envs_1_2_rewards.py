@@ -4,6 +4,8 @@ import pickle
 import matplotlib.pyplot as plt
 from datetime import datetime
 from almacen_all import WarehouseEnv
+import time
+import pandas as pd
 
 class SarsaAgent:
     """
@@ -137,6 +139,15 @@ class SarsaAgent:
         Returns:
         None
         """
+
+        episodes = 0
+        collision_wall = 0
+        collision_obj = 0
+        num_objective = 0
+        avg_reward = 0
+        avg_steps = 0
+        time_ini = time.time()
+
         epsilon = self.epsilon
         # Juega con estos tres hiperparámetros:
         # entre 0 y 1. 
@@ -147,7 +158,6 @@ class SarsaAgent:
         min_epsilon = .000
         
         ####################################
-        good_episodes = 0
         for episode in range(num_episodes):
             # Set-up del episodio
             state = self.env.reset()
@@ -162,7 +172,7 @@ class SarsaAgent:
             # Generación del episodio
             total_undiscounted_return = 0
             while True:                                        
-                next_state, done, _ = self.env.step(action)
+                next_state, done, _, col = self.env.step(action)
                 reward = self.feedback.calculate_reward(next_state)      
                 total_undiscounted_return += reward          
                 next_action = self.get_action(next_state, epsilon)
@@ -171,8 +181,15 @@ class SarsaAgent:
                 action = next_action                
                 n_steps += 1
                 if done:
-                    if reward > 0:
-                        good_episodes += 1
+
+                    if col == 1:
+                        collision_wall += 1
+
+                    if col == 2:
+                        collision_obj += 1
+
+                    if next_state[8]:
+                        num_objective += 1
 
                     break
                 # Esto se añade por si puntualmente hubiera alguna configuración
@@ -181,14 +198,11 @@ class SarsaAgent:
                 # eficiente.
                 if n_steps >= 2000:
                     break
-            # Aquí también puedes cambiar la frecuencia con la que muestras
-            # los resultados en la consola, e incluso deshabilitarla.
-            episodes_update = 1000
-            if episode % episodes_update == 0:                      
-                print(f"Episode {episode}, Total undiscounted return: {total_undiscounted_return}, Epsilon: {epsilon}")
-                print(f"Good episodes: {good_episodes/ episodes_update}")
-                good_episodes = 0
-                # puedes salvar el estado actual del agente, si te viene bien    
+            episodes += 1
+            avg_reward += total_undiscounted_return
+            avg_steps += n_steps
+
+        return episodes, collision_wall, collision_obj, num_objective, avg_reward, avg_steps, time.time() - time_ini
 
     
     def evaluate(self, num_episodes):
@@ -208,32 +222,48 @@ class SarsaAgent:
         """
         steps = 0
         num_objective = 0
+        collision_wall = 0
+        collision_obj = 0
+        episodes = 0
+
         for _ in range(num_episodes):
             romper = 0
             state = self.env.reset()
             total_undiscounted_return = 0
             done = False
+
             while not done:
                 action = self.get_action(state, epsilon=0.02)  # Greedy policy
-                next_state, done, _ = self.env.step(action)
+                next_state, done, _, col = self.env.step(action)
                 reward = self.feedback.calculate_reward(next_state)
-                if next_state[8]:
-                    num_objective += 1
-                self.env.render()
+                if done:
+                    
+                    if col == 1:
+                        collision_wall += 1
+
+                    if col == 2:
+                        collision_obj += 1
+
+                    if next_state[8]:
+                        num_objective += 1
+
+                # self.env.render()
                 state = next_state
                 total_undiscounted_return += reward
                 steps += 1
                 romper += 1
-                if romper > 1000:
+                if romper > 2000:
                     break
+
+            episodes += 1
  
-        return print(steps / num_episodes, num_objective / num_episodes)
+        return episodes, total_undiscounted_return, steps, collision_wall, collision_obj, num_objective
 
 
 if __name__ == "__main__":
     # instanciamos entorno, representación y agente
     # No tocar
-    env = WarehouseEnv(just_pick=False, random_objects=False)
+    env = WarehouseEnv(just_pick=True, random_objects=False)
     warehouse_width = 10.0
     warehouse_height = 10.0
     ################
@@ -244,46 +274,173 @@ if __name__ == "__main__":
     learning_rate = 0.005
     discount_factor = 0.99995
     epsilon = 0.6
+    tr_episodes = 10000
+    eval_episodes = 500
     
     target_area = (2.5, 8, 1.0, 2.0)
 
-    feedback = FeedbackConstruction(
-        (warehouse_width, warehouse_height), 
-        (n_tiles_width, n_tiles_height), 
-        n_tilings,
-        target_area, rewards
-    )
+    # We will analyse the following rewards in terms of proportionalities between "step_reward_obj_1"
+
+    reward_obj_1 = -0.5
+    base_collision_reward = -100
+    base_pickup_reward = 5000
+
+    prop_r1_collision = [10, 50, 100, 200, 300, 400]
+    prop_r1_pickup = [1000, 5000, 10000, 20000, 30000, 40000]
+
+    rewards = {
+        "step_reward_obj_1": -0.5,
+        "step_reward_obj_2": -2,
+        "positive_pickup_reward": 5000,
+        "collision_reward_1": -100,
+        "collision_reward_2": -5001,
+        "target_reached_reward": 10000
+    }
+
+    df_col_tr = pd.DataFrame(columns=["col_reward","episodes", "collision_wall", "collision_obj", "num_objective", "avg_reward", "avg_steps", "time"])
+
+    df_col_eval = pd.DataFrame(columns=["col_reward", "episodes", "total_undiscounted_return", "steps", "collision_wall", "collision_obj", "num_objective"])
+    # We will train many agents with different parameters mainatining the rest of the parameters constant
+
+    for reward in prop_r1_collision:
+
+        print('Training agent with collision reward: ', reward * reward_obj_1)
+        rewards["collision_reward_1"] = reward * reward_obj_1
+        
+        feedback = FeedbackConstruction(
+            (warehouse_width, warehouse_height),
+            (n_tiles_width, n_tiles_height),
+            n_tilings,
+            target_area, rewards
+        )
+
+        agent = SarsaAgent(
+            env,
+            feedback,
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon
+        )
+
+        episodes, collision_wall, collision_obj, num_objective, avg_reward, avg_steps, time_tr = agent.train(tr_episodes)
+
+
+        print('Parameters: ')
+        print('N-tilings: ', n_tilings)
+        print('(W, H): ', (n_tiles_width, n_tiles_height))
+        print('LR: ', learning_rate)
+        print('DF: ', discount_factor)
+        print('EPS: ', epsilon)
+
+        # Add to the dataframe
+        df_col_tr = df_col_tr._append({
+            "col_reward": reward * reward_obj_1,
+            "episodes": episodes,
+            "collision_wall": collision_wall,
+            "collision_obj": collision_obj,
+            "num_objective": num_objective,
+            "avg_reward": avg_reward,
+            "avg_steps": avg_steps,
+            "time": time_tr
+        }, ignore_index=True)
+
+        # Evaluate the agent
+        episodes, total_undiscounted_return, steps, collision_wall, collision_obj, num_objective = agent.evaluate(eval_episodes)
+        df_col_eval = df_col_eval._append({
+            "col_reward": reward * reward_obj_1,
+            "episodes": episodes,
+            "total_undiscounted_return": total_undiscounted_return,
+            "steps": steps,
+            "collision_wall": collision_wall,
+            "collision_obj": collision_obj,
+            "num_objective": num_objective
+        }, ignore_index=True)
+
+
+    df_col_tr.to_csv("./sensibility/collision_reward_1_tr.csv")
+    df_col_eval.to_csv("./sensibility/collision_reward_1_eval.csv")
+
+    df_pickup_tr = pd.DataFrame(columns=["pickup_reward","episodes", "collision_wall", "collision_obj", "num_objective", "avg_reward", "avg_steps","time"])
+
+    df_pickup_eval = pd.DataFrame(columns=["pickup_reward","episodes", "total_undiscounted_return", "steps", "collision_wall", "collision_obj", "num_objective"])
+
+    rewards["collision_reward_1"] = base_collision_reward
+    for reward in prop_r1_pickup:
+        print('Training agent with pickup reward: ', reward)
+        rewards["positive_pickup_reward"] = reward * reward_obj_1
+
+        feedback = FeedbackConstruction(
+            (warehouse_width, warehouse_height),
+            (n_tiles_width, n_tiles_height),
+            n_tilings,
+            target_area, rewards
+        )
+
+        agent = SarsaAgent(
+            env,
+            feedback,
+            learning_rate=learning_rate,
+            discount_factor=discount_factor,
+            epsilon=epsilon
+        )
+
+        episodes, collision_wall, collision_obj, num_objective, avg_reward, avg_steps, time_tr = agent.train(tr_episodes)
+
+
+        print('Parameters: ')
+        print('N-tilings: ', n_tilings)
+        print('(W, H): ', (n_tiles_width, n_tiles_height))
+        print('LR: ', learning_rate)
+        print('DF: ', discount_factor)
+        print('EPS: ', epsilon)
+
+        # Add to the dataframe
+        df_pickup_tr = df_pickup_tr._append({
+            "pickup_reward": reward*reward_obj_1,
+            "episodes": episodes,
+            "collision_wall": collision_wall,
+            "collision_obj": collision_obj,
+            "num_objective": num_objective,
+            "avg_reward": avg_reward,
+            "avg_steps": avg_steps,
+            "time": time_tr
+        }, ignore_index=True)
+
+        # Evaluate the agent
+        episodes, total_undiscounted_return, steps, collision_wall, collision_obj, num_objective = agent.evaluate(eval_episodes)
+
+        df_pickup_eval = df_pickup_eval._append({
+            "pickup_reward": reward*reward_obj_1,
+            "episodes": episodes,
+            "total_undiscounted_return": total_undiscounted_return,
+            "steps": steps,
+            "collision_wall": collision_wall,
+            "collision_obj": collision_obj,
+            "num_objective": num_objective
+        }, ignore_index=True)
+
+    df_pickup_tr.to_csv("./sensibility/pickup_reward_tr.csv")
+    df_pickup_eval.to_csv("./sensibility/pickup_reward_eval.csv")
+
+
+
+
+
+        
+
     
-    agent = SarsaAgent(
-        env,
-        feedback,
-        learning_rate=learning_rate,
-        discount_factor=discount_factor,
-        epsilon=epsilon
-    )
     
-    # Train the agent
-    
-    #agent.train(num_episodes=10000)
-
-    print('Parameters: ')
-    print('N-tilings: ',n_tilings)
-    print('(W, H): ', (n_tiles_width, n_tiles_height))
-    print('LR: ', learning_rate)
-    print('DF: ', discount_factor)
-    print('EPS: ', epsilon)
-    
-    # save the agent object into memory    
-    with open('Anacleto_Agente_Secreto_VERSION_MEJORADA', 'wb') as f:
-        pickle.dump(agent, f)
+    # # save the agent object into memory    
+    # with open('Anacleto_Agente_Secreto_VERSION_MEJORADA', 'wb') as f:
+    #     pickle.dump(agent, f)
 
     
 
-    # load the agent object from memory
-    with open('Anacleto_Agente_Secreto_VERSION_MEJORADA.pkl', 'rb') as f:
-        agent = pickle.load(f)
+    # # load the agent object from memory
+    # with open('Anacleto_Agente_Secreto_VERSION_MEJORADA.pkl', 'rb') as f:
+    #     agent = pickle.load(f)
 
-    # Evaluate the agent
+    # # Evaluate the agent
 
 
-    agent.evaluate(num_episodes=10000)
+    # agent.evaluate(num_episodes=10000)
