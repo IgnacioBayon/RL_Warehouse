@@ -44,7 +44,7 @@ class WarehouseEnv(gym.Env):
         # Define agent properties
         self.agent_radius = 0.2
         self.agent_velocity = 0.25
-        self.pickup_distance = 0.3
+        self.pickup_distance = 0.6
 
         # Add a variable to store the figure and axis for rendering
         self.fig = None
@@ -115,7 +115,7 @@ class WarehouseEnv(gym.Env):
                     self.delivery = True
                 else:
                     # Drop the object at the agent's position
-                    self.object_positions.append(self.agent_pos)  
+                    self.object_positions.append(self.agent_pos) 
                     self.agent_has_object = False
 
         return self._get_obs(), done, {}
@@ -284,7 +284,7 @@ class WarehouseEnv(gym.Env):
 if __name__ == "__main__":
 
     # Select the env mode
-    env_mode = 'fixed_pick'  # 'fixed_drop', 'random_drop', 'random_pick'
+    env_mode = 'fixed_drop'  # 'fixed_drop', 'random_drop', 'random_pick'
     if env_mode == 'fixed_pick':
         env = WarehouseEnv(just_pick=True, random_objects=False)
     elif env_mode == 'fixed_drop':

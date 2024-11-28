@@ -1,10 +1,9 @@
 import numpy as np
-# from entorno_navegacion import Navegacion
-from almacen_all import WarehouseEnv
 from representacion import FeedbackConstruction
 import pickle
 import matplotlib.pyplot as plt
 from datetime import datetime
+from almacen_all import WarehouseEnv
 
 class SarsaAgent:
     """
@@ -32,14 +31,7 @@ class SarsaAgent:
         evaluate(num_episodes):
             Evaluates the agent's performance over a specified number of episodes.
     """
-    def __init__(
-            self,
-            env: WarehouseEnv,
-            feedback: FeedbackConstruction,
-            learning_rate=0.1,
-            discount_factor=0.99,
-            epsilon=0.1
-        ):
+    def __init__(self, env: WarehouseEnv, feedback: FeedbackConstruction, learning_rate=0.01, discount_factor=0.99, epsilon=0.1):
         # Mejor no toques estas líneas
         self.env = env
         self.feedback = feedback
@@ -48,6 +40,7 @@ class SarsaAgent:
         self.epsilon = epsilon
         self.num_actions = env.action_space.n
         self.feature_size = feedback.iht.size
+        ##################################
         
         # Si vas a añadir más variables (features) además del tile coding, resérvales espacio aquí.
         ##############################
@@ -90,6 +83,7 @@ class SarsaAgent:
         Returns:
         np.ndarray: A numpy array of Q-values for each action in the given state.
         """
+        
         features = self.feedback.process_observation(state)
         q_values = np.zeros(self.num_actions)
         indx = [int(t) for t in features[:-2]]
@@ -150,13 +144,14 @@ class SarsaAgent:
         # control del decrecimiento (exponencial) de epsilon
         decay_rate = 0.999
         # valor mínimo de epsilon
-        min_epsilon = .02
+        min_epsilon = .000
         
         ####################################
-
+        good_episodes = 0
         for episode in range(num_episodes):
             # Set-up del episodio
             state = self.env.reset()
+            self.feedback.flanco = False
             # Decrecimiento exponencial de epsilon hasta valor mínimo desde comienzo marcado
             if episode >= num_episodes*decay_start:
                 epsilon *= decay_rate
@@ -176,6 +171,9 @@ class SarsaAgent:
                 action = next_action                
                 n_steps += 1
                 if done:
+                    if reward > 0:
+                        good_episodes += 1
+
                     break
                 # Esto se añade por si puntualmente hubiera alguna configuración
                 # de qs que hiciera al agente oscilar demasiado entre dos estados
@@ -188,6 +186,8 @@ class SarsaAgent:
             episodes_update = 1000
             if episode % episodes_update == 0:                      
                 print(f"Episode {episode}, Total undiscounted return: {total_undiscounted_return}, Epsilon: {epsilon}")
+                print(f"Good episodes: {good_episodes/ episodes_update}")
+                good_episodes = 0
                 # puedes salvar el estado actual del agente, si te viene bien    
 
     
@@ -206,54 +206,44 @@ class SarsaAgent:
         - The environment is reset at the beginning of each episode.
         - The agent's action is determined by the `get_action` method with epsilon set to 0.
         """
-        total_returns = []
-        for episode in range(num_episodes):
+        steps = 0
+        num_objective = 0
+        for _ in range(num_episodes):
+            romper = 0
             state = self.env.reset()
             total_undiscounted_return = 0
             done = False
-            
             while not done:
-                action = self.get_action(state, epsilon=0.01)  # Greedy policy
+                action = self.get_action(state, epsilon=0.02)  # Greedy policy
                 next_state, done, _ = self.env.step(action)
                 reward = self.feedback.calculate_reward(next_state)
+                if next_state[8]:
+                    num_objective += 1
                 self.env.render()
                 state = next_state
                 total_undiscounted_return += reward
-            
-            total_returns.append(total_undiscounted_return)
-        
-        avg_return = np.mean(total_returns)
-        print(f"Average undiscounted return over {num_episodes} episodes: {avg_return}")
-        return avg_return
+                steps += 1
+                romper += 1
+                if romper > 1000:
+                    break
+ 
+        return print(steps / num_episodes, num_objective / num_episodes)
 
 
 if __name__ == "__main__":
     # instanciamos entorno, representación y agente
     # No tocar
-
-    # Select the env mode
-    env_mode = 'fixed_pick'  # 'fixed_drop', 'random_drop', 'random_pick'
-    if env_mode == 'fixed_pick':
-        env = WarehouseEnv(just_pick=True, random_objects=False)
-    elif env_mode == 'fixed_drop':
-        env = WarehouseEnv(just_pick=False, random_objects=False)
-    elif env_mode == 'random_drop':
-        env = WarehouseEnv(just_pick=False, random_objects=True)
-    elif env_mode == 'random_pick':
-        env = WarehouseEnv(just_pick=True, random_objects=True)
-    else:
-        raise ValueError(f'The env mode: {env_mode} is not available!')
-
+    env = WarehouseEnv(just_pick=False, random_objects=False)
     warehouse_width = 10.0
     warehouse_height = 10.0
     ################
     # diseñar los tiles
-    n_tiles_width = 3
-    n_tiles_height = 3
-    n_tilings = 15
+    n_tiles_width = 15
+    n_tiles_height = 15
+    n_tilings = 10
     learning_rate = 0.005
-    discount_factor = 0.995
-    epsilon = 0.45
+    discount_factor = 0.99995
+    epsilon = 0.6
     
     target_area = (2.5, 8, 1.0, 2.0)
 
@@ -273,7 +263,8 @@ if __name__ == "__main__":
     )
     
     # Train the agent
-    agent.train(num_episodes=100000)
+    
+    #agent.train(num_episodes=10000)
 
     print('Parameters: ')
     print('N-tilings: ',n_tilings)
@@ -283,10 +274,16 @@ if __name__ == "__main__":
     print('EPS: ', epsilon)
     
     # save the agent object into memory    
-    with open('agente_grupo_xx_a.pkl', 'wb') as f:
+    with open('Anacleto_Agente_Secreto_VERSION_MEJORADA', 'wb') as f:
         pickle.dump(agent, f)
 
-    # Evaluate the agent
-    agent.evaluate(num_episodes=10000)
-
     
+
+    # load the agent object from memory
+    with open('Anacleto_Agente_Secreto_VERSION_MEJORADA.pkl', 'rb') as f:
+        agent = pickle.load(f)
+
+    # Evaluate the agent
+
+
+    agent.evaluate(num_episodes=10000)

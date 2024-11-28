@@ -1,10 +1,6 @@
 import numpy as np
 from tiles3 import IHT, tiles
 
-
-agent = 1
-
-
 class FeedbackConstruction:
     def __init__(self, dims, n_tiles, n_tilings, target_area):
         # No tocar estas líneas
@@ -18,24 +14,15 @@ class FeedbackConstruction:
         self.iht = IHT(self.max_size)
         ##############################
         # Si quieres añadir más atributos, añádelos a partir de aquí
-        if agent == 1:
-            self.step_reward = -1
-            self.collision_reward = -10
-            self.target_reached_reward = 20
-            ##############################
-            self.wrong_pick = -1
-            self.pick_object = 5
-        if agent == 2 or agent == 3:
-            self.step_reward = -1
-            self.collision_reward = -10
-            self.target_reached_reward = 20
-            ##############################
-            self.wrong_pick = -1
-            self.wrong_drop = -1
-            self.pick_object = 5
-            self.drop_object = 5
-        self.had_object = False
+        self.step_reward_obj_1 = -0.5
+        self.step_reward_obj_2 = -2
+        self.positive_pickup_reward = 5000
+        self.collision_reward_1 = -100
+        self.collision_reward_2 = -5001
+        self.target_reached_reward = 10000
+        self.flanco = False
 
+        
     def process_observation(self, obs):
         """
         Processes the observation from the environment and extracts relevant features.
@@ -50,8 +37,10 @@ class FeedbackConstruction:
                         and collision status.
         """
         agent_pos = obs[:2]
-        collision = obs[2]
-        target_area = obs[3]
+        object_positions = obs[2:8]
+        agent_has_object = obs[8]
+        collision = obs[9]
+        target_area = obs[10]
         
         # Normalize agent position
         norm_x = agent_pos[0] / self.scale_width
@@ -61,7 +50,8 @@ class FeedbackConstruction:
         active_tiles = self._get_active_tiles(norm_x, norm_y)
 
         # Añade aquí tu código para devolver la observación procesada
-        observacion = np.concatenate([active_tiles, [collision], [target_area]])
+        observacion = np.concatenate([active_tiles, [agent_has_object, collision, target_area]])
+        ##############################
 
         return observacion
 
@@ -92,6 +82,29 @@ class FeedbackConstruction:
                 
         return active_tiles
         ##############################
+    
+    def _distance(self, obs):
+        """
+        Calculate the Euclidean distance between the agent and objects.
+        Args:
+            pos_agent (tuple): The position of the agent.
+            pos_objects (tuple): The position of the objects.
+        Returns:
+            float: The Euclidean distance between the nearest object and the agent.
+        """
+        ##############################
+
+        # Añade aquí tu código para calcular la distancia euclidiana
+        pos_agent = obs[:2]
+        pos_object_1 = obs[2:4]
+        pos_object_2 = obs[4:6]
+        pos_object_3 = obs[6:8]
+        distances = []
+        for pos_object in [pos_object_1, pos_object_2, pos_object_3]:
+            if pos_object is not None:
+                distances.append(np.sqrt((pos_agent[0] - pos_object[0])**2 + (pos_agent[1] - pos_object[1])**2))
+        if len(distances) > 0:
+            return min(distances)
 
     def calculate_reward(self, obs):
        
@@ -99,36 +112,34 @@ class FeedbackConstruction:
         reward  = 0
  
         agent_pos = obs[:2]
-        pos_obj1 = obs[2:4]
-        pos_obj2 = obs[4:6]
-        pos_obj3 = obs[6:8]
-        has_object = obs[8]
+        object_positions = obs[2:8]
+        agent_has_object = obs[8]
         collision = obs[9]
-        # True if drop in target area. False otherwise
-        delivery = obs[10]
+        target_area = obs[10]
 
-        if collision:
-            reward = self.collision_reward
-        elif delivery:
-            if has_object:
-                reward = self.drop_object
+        # comprobacion de si el agente se encuentra en la zona de entrega
+        
+        if agent_has_object: 
+            if self.flanco == False:
+                reward = self.positive_pickup_reward
+                self.flanco = True
             else:
-                reward = self.wrong_drop
-        elif not delivery:
-            if self.had_object and not has_object:
-                reward = self.wrong_drop
-                self.pick_object = 5
-            elif has_object and not self.had_object:
-                reward = self.pick_object
-                self.pick_object = -1
+                if collision:
+                    reward = self.collision_reward_2
+                    self.flanco = False
+                elif target_area:
+                    reward = self.target_reached_reward
+                    self.flanco = False
+                else: 
+                    reward = self.step_reward_obj_2
+
         else:
-            reward = self.step_reward
-
-        self.had_object = has_object
-
+            if collision: 
+                reward = self.collision_reward_1
+            else: 
+                reward = self.step_reward_obj_1
+            
         return reward
-
-
     
 if __name__ == "__main__":
     # Espacio para pruebas
@@ -144,11 +155,7 @@ if __name__ == "__main__":
     n_tilings = 4
 
 
-    realimentacion = FeedbackConstruction(
-        (warehouse_width, warehouse_height),
-        (n_tiles_width, n_tiles_height),
-        n_tilings, 
-        target_area
-    )
+    realimentacion = FeedbackConstruction((warehouse_width, warehouse_height), (n_tiles_width, n_tiles_height), n_tilings, 
+                                target_area)
 
 

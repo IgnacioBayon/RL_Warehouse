@@ -1,3 +1,13 @@
+# Ignore .pkl files
+*.pkl
+# Ignore .zip files
+*.zip
+# Ignore .pdf and .docx files
+*.pdf
+*.docx
+
+############################
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
