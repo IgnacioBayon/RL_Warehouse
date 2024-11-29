@@ -5,9 +5,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def draw_reward_training_graph(data, title, save_path):
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def draw_reward_training_graph(data, title, save_path, ma=100):
     """
-    Draws a reward training graph for the given data.
+    Draws a reward training graph for the given data with a 100-episode moving average.
     
     Parameters:
         data (pd.DataFrame): The input data containing reward columns.
@@ -20,7 +23,9 @@ def draw_reward_training_graph(data, title, save_path):
     for col in data.columns:
         if col.startswith("reward_"):
             label = col.split("_")[-1]
-            plt.plot(data[col], label=f"{label}")
+            # Calculate the 100-episode moving average
+            moving_avg = data[col].rolling(window=ma).mean()
+            plt.plot(moving_avg, label=f"{label} ({ma}-MA)")
     
     plt.title(title)
     plt.xlabel("Episodes")
@@ -30,9 +35,9 @@ def draw_reward_training_graph(data, title, save_path):
     plt.savefig(save_path)
     plt.close()
 
-def draw_steps_training_graph(data, title, save_path):
+def draw_steps_training_graph(data, title, save_path, ma = 100):
     """
-    Draws a steps training graph for the given data.
+    Draws a steps training graph for the given data with a 100-episode moving average.
     
     Parameters:
         data (pd.DataFrame): The input data containing step columns.
@@ -45,7 +50,9 @@ def draw_steps_training_graph(data, title, save_path):
     for col in data.columns:
         if col.startswith("steps_"):
             label = col.split("_")[-1]
-            plt.plot(data[col], label=f"{label}")
+            # Calculate the 100-episode moving average
+            moving_avg = data[col].rolling(window=ma).mean()
+            plt.plot(moving_avg, label=f"{label} ({ma}-MA)")
     
     plt.title(title)
     plt.xlabel("Episodes")
@@ -54,6 +61,7 @@ def draw_steps_training_graph(data, title, save_path):
     plt.grid()
     plt.savefig(save_path)
     plt.close()
+
 
 def draw_success_training_graph(data, title, save_path):
     """
@@ -72,9 +80,9 @@ def draw_success_training_graph(data, title, save_path):
             label = col.split("_")[-1]
             # Count only zeros, ignoring other values and NaN
             zero_count = (data[col] == 0).cumsum()
-            print(f"{col} - {zero_count}")
+            # print(f"{col} - {zero_count}")
             success_rate = zero_count / (data.index + 1)
-            plt.plot(success_rate, label=f"Epsilon {label}")
+            plt.plot(success_rate, label=f"{label}")
 
     plt.title(title)
     plt.xlabel("Episodes")
@@ -102,8 +110,8 @@ if __name__ == "__main__":
         data = pd.read_csv(f"./train_approach/results_{type}.csv")
 
         # Draw the graphs
-        # draw_reward_training_graph(data, f"{type} Sensibility", f"./train_approach/{type}_reward.png")
-        # draw_steps_training_graph(data, f"{type} Sensibility", f"./train_approach/{type}_steps.png")
+        draw_reward_training_graph(data, f"{type} Sensibility", f"./train_approach/{type}_reward.png", 200)
+        draw_steps_training_graph(data, f"{type} Sensibility", f"./train_approach/{type}_steps.png", 200)
         draw_success_training_graph(data, f"{type} Sensibility", f"./train_approach/{type}_success.png")
 
 

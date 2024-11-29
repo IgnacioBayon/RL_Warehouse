@@ -127,7 +127,7 @@ class SarsaAgent:
         for i in indx:
             self.weights[action][i] += self.learning_rate * td_error
 
-    def train(self, num_episodes):
+    def train(self, num_episodes, decay_start=0.6, decay_rate=0.999, min_epsilon=0.000):
         """
         Train the agent using the SARSA(0) algorithm.
         Parameters:
@@ -147,11 +147,11 @@ class SarsaAgent:
         epsilon = self.epsilon
         # Juega con estos tres hiperparámetros:
         # entre 0 y 1. 
-        decay_start = .6
-        # control del decrecimiento (exponencial) de epsilon
-        decay_rate = 0.999
-        # valor mínimo de epsilon
-        min_epsilon = .000
+        # decay_start = .6
+        # # control del decrecimiento (exponencial) de epsilon
+        # decay_rate = 0.999
+        # # valor mínimo de epsilon
+        # min_epsilon = .000
         
         ####################################
         for episode in range(num_episodes):
@@ -289,6 +289,10 @@ if __name__ == "__main__":
     df = [0.4, 0.7, 0.9, 0.999]
     nt = [4, 8, 12, 18]
     n_wh = [4, 8, 14, 20]
+    ds = [0.2, 0.4, 0.6, 0.8]
+    dr = [0.99, 0.995, 0.999, 0.9999]
+    me = [0.0001, 0.0005, 0.001, 0.005]
+
 
     # To dict
     dict_params = {
@@ -296,7 +300,10 @@ if __name__ == "__main__":
         "epsilon": eps,
         "discount_factor": df,
         "n_tilings": nt,
-        "n_wh": n_wh
+        "n_wh": n_wh,
+        "decay_start": ds,
+        "decay_rate": dr,
+        "min_epsilon": me
     }
 
     model_params ={
@@ -304,7 +311,21 @@ if __name__ == "__main__":
         "discount_factor": 0.999,
         "epsilon": 0.6,
         "n_tilings": 10,
-        "n_wh": 15
+        "n_wh": 15, 
+        "decay_start": 0.6,
+        "decay_rate": 0.999,
+        "min_epsilon": 0.0001
+    }
+
+    model_params_base = {
+        "learning_rate": 0.005,
+        "discount_factor": 0.999,
+        "epsilon": 0.6,
+        "n_tilings": 10,
+        "n_wh": 15, 
+        "decay_start": 0.6,
+        "decay_rate": 0.999,
+        "min_epsilon": 0.0001
     }
 
     rewards = {
@@ -325,7 +346,7 @@ if __name__ == "__main__":
             model_params[key] = v
             feedback = FeedbackConstruction((warehouse_width, warehouse_height),(model_params["n_wh"], model_params["n_wh"]), model_params["n_tilings"], target_area, rewards)
             agent = SarsaAgent(env, feedback, model_params["learning_rate"], model_params["discount_factor"], model_params["epsilon"])
-            return_reward, steps, end = agent.train(tr_episodes)
+            return_reward, steps, end = agent.train(tr_episodes, model_params["decay_start"], model_params["decay_rate"], model_params["min_epsilon"])
 
             #episodes, total_undiscounted_return, steps, collision_wall, collision_obj, num_objective = agent.evaluate(eval_episodes)
             
@@ -334,6 +355,8 @@ if __name__ == "__main__":
             df[f"reward_{v}"] = return_reward
             df[f"steps_{v}"] = steps
             df[f"end_{v}"] = end
+
+            model_params = model_params_base.copy()
 
 
         df.to_csv(f"./train_approach/results_{key}.csv")
