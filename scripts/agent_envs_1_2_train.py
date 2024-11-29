@@ -297,7 +297,7 @@ if __name__ == "__main__":
     # To dict
     dict_params = {
         # "learning_rate": lr,
-        "epsilon": eps,
+        # "epsilon": eps,
         "discount_factor": df,
         "n_tilings": nt,
         "n_wh": n_wh,
@@ -326,14 +326,6 @@ if __name__ == "__main__":
         "decay_start": 0.6,
         "decay_rate": 0.999,
         "min_epsilon": 0.0001
-    }
-
-    model_params_base = {
-        "learning_rate": 0.005,
-        "discount_factor": 0.999,
-        "epsilon": 0.6,
-        "n_tilings": 10,
-        "n_wh": 15
     }
 
     rewards = {
