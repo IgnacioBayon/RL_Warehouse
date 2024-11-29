@@ -307,6 +307,14 @@ if __name__ == "__main__":
         "n_wh": 15
     }
 
+    model_params_base = {
+        "learning_rate": 0.005,
+        "discount_factor": 0.999,
+        "epsilon": 0.6,
+        "n_tilings": 10,
+        "n_wh": 15
+    }
+
     rewards = {
         "step_reward_obj_1": -0.5,
         "step_reward_obj_2": -2,
@@ -334,6 +342,8 @@ if __name__ == "__main__":
             df[f"reward_{v}"] = return_reward
             df[f"steps_{v}"] = steps
             df[f"end_{v}"] = end
+
+            model_params[key] = model_params_base[key]
 
 
         df.to_csv(f"./train_approach/results_{key}.csv")
