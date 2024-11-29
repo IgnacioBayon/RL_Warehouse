@@ -2,7 +2,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def draw_barplot_results(data, title, save_path):
+def draw_barplot_results(data, title, save_path, column):
     """
     Draws a grouped bar plot for given data and saves it to the specified path.
     
@@ -14,14 +14,14 @@ def draw_barplot_results(data, title, save_path):
         save_path (str): The path where the bar plot image will be saved.
     """
     # Transform data to long format for easier plotting
-    data_long = data.melt(id_vars=["col_reward"], 
+    data_long = data.melt(id_vars=[column], 
                           value_vars=["collision_wall", "collision_obj", "num_objective"],
                           var_name="Type", value_name="Value")
     
     # Reverse the order of the 'col_reward' categories
-    sorted_categories = data["col_reward"][::-1]  # Reverse the order
-    data_long["col_reward"] = pd.Categorical(data_long["col_reward"], 
-                                             categories=sorted_categories, 
+    # sorted_categories = data[column][::-1]  # Reverse the order
+    data_long[column] = pd.Categorical(data_long[column], 
+                                             categories=data[column],
                                              ordered=True)
     
     # Set up the color palette
@@ -35,7 +35,7 @@ def draw_barplot_results(data, title, save_path):
     plt.figure(figsize=(10, 6))
     sns.barplot(
         data=data_long, 
-        x="col_reward", 
+        x=column, 
         y="Value", 
         hue="Type", 
         palette=color_palette, 
@@ -47,7 +47,7 @@ def draw_barplot_results(data, title, save_path):
     
     # Add title and labels
     plt.title(title, fontsize=18, weight='bold')
-    plt.xlabel("col_reward", fontsize=14, weight='bold')
+    plt.xlabel(column, fontsize=14, weight='bold')
     plt.ylabel("Reached", fontsize=14, weight='bold')
     
     # Customize legend
@@ -148,6 +148,18 @@ def draw_dual_barplot(data, title, save_path):
 if __name__ == "__main__":
     # Example data
     data_col_tr = pd.read_csv("./sensibility/collision_reward_1_tr.csv")
+    data_pickup_tr = pd.read_csv("./sensibility/pickup_reward_tr.csv")
 
-    draw_barplot_results(data_col_tr, "Collision Reward 1", "./sensibility/collision_reward_1_tr_results.png")
-    draw_dual_barplot(data_col_tr, "Collision Reward 1", "./sensibility/collision_reward_1_tr_steps_reward.png")
+    data_col_eval = pd.read_csv("./sensibility/collision_reward_1_eval.csv")
+    data_pickup_eval = pd.read_csv("./sensibility/pickup_reward_eval.csv")
+
+    # draw_barplot_results(data_col_tr, "Collision Reward 1", "./sensibility/collision_reward_1_tr_results.png")
+    # draw_dual_barplot(data_col_tr, "Collision Reward 1", "./sensibility/collision_reward_1_tr_steps_reward.png")
+
+
+    draw_barplot_results(data_col_tr, "Collision Reward", "./sensibility/collision_reward_1_tr_results.png", "col_reward")
+    draw_barplot_results(data_pickup_tr, "Pickup Reward", "./sensibility/pickup_reward_tr_results.png", "pickup_reward")
+
+    draw_barplot_results(data_col_eval, "Collision Reward", "./sensibility/collision_reward_1_eval_results.png", "col_reward")
+    draw_barplot_results(data_pickup_eval, "Pickup Reward", "./sensibility/pickup_reward_eval_results.png", "pickup_reward")
+
