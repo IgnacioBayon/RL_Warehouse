@@ -101,7 +101,9 @@ if __name__ == "__main__":
         "epsilon",
         "discount_factor",
         "n_tilings",
-        "n_wh"
+        "n_wh", 
+        "decay_rate", 
+        "decay_start"
     ]
 
     # Load the data
