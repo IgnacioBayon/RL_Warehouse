@@ -193,6 +193,7 @@ class SarsaAgent:
                 # Estrictamente hablando, no es necesario, pero lo hace más 
                 # eficiente.
                 if n_steps >= 2000:
+                    end.append(np.nan)
                     break
             
             if episode % 1000 == 0:
@@ -291,7 +292,7 @@ if __name__ == "__main__":
 
     # To dict
     dict_params = {
-        "learning_rate": lr,
+        # "learning_rate": lr,
         "epsilon": eps,
         "discount_factor": df,
         "n_tilings": nt,
@@ -320,7 +321,7 @@ if __name__ == "__main__":
         df = pd.DataFrame(columns=[])
 
         for v in value:
-
+            print(f"Training with {key} = {v}")
             model_params[key] = v
             feedback = FeedbackConstruction((warehouse_width, warehouse_height),(model_params["n_wh"], model_params["n_wh"]), model_params["n_tilings"], target_area, rewards)
             agent = SarsaAgent(env, feedback, model_params["learning_rate"], model_params["discount_factor"], model_params["epsilon"])
