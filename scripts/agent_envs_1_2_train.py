@@ -328,6 +328,14 @@ if __name__ == "__main__":
         "min_epsilon": 0.0001
     }
 
+    model_params_base = {
+        "learning_rate": 0.005,
+        "discount_factor": 0.999,
+        "epsilon": 0.6,
+        "n_tilings": 10,
+        "n_wh": 15
+    }
+
     rewards = {
         "step_reward_obj_1": -0.5,
         "step_reward_obj_2": -2,
